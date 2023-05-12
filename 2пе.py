@@ -1,9 +1,11 @@
+import math
 import sys
 import random
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QLineEdit, QTextEdit
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
+
 
 class App(QWidget):
     def __init__(self):
@@ -22,101 +24,114 @@ class App(QWidget):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        # Создаем layout и добавляем в него графики и журнал координат
         layout = QVBoxLayout()
         self.setLayout(layout)
 
         coord_input_layout = QHBoxLayout()
         layout.addLayout(coord_input_layout)
 
-        coord_input_layout.addWidget(QLabel('Start (x, y, z):'))
-        self.start_x_input = QLineEdit()
-        coord_input_layout.addWidget(self.start_x_input)
-        self.start_y_input = QLineEdit()
-        coord_input_layout.addWidget(self.start_y_input)
-        self.start_z_input = QLineEdit()
-        coord_input_layout.addWidget(self.start_z_input)
+        self.angle_input = QLineEdit()
+        coord_input_layout.addWidget(QLabel('Angle (degrees):'))
+        coord_input_layout.addWidget(self.angle_input)
 
-        coord_input_layout.addWidget(QLabel('End (x, y, z):'))
-        self.end_x_input = QLineEdit()
-        coord_input_layout.addWidget(self.end_x_input)
-        self.end_y_input = QLineEdit()
-        coord_input_layout.addWidget(self.end_y_input)
-        self.end_z_input = QLineEdit()
-        coord_input_layout.addWidget(self.end_z_input)
+        self.radius_input = QLineEdit()
+        coord_input_layout.addWidget(QLabel('Radius:'))
+        coord_input_layout.addWidget(self.radius_input)
+
+        self.distance_input = QLineEdit()
+        coord_input_layout.addWidget(QLabel('Distance:'))
+        coord_input_layout.addWidget(self.distance_input)
+
+        self.course_input = QLineEdit()
+        coord_input_layout.addWidget(QLabel('Course:'))
+        coord_input_layout.addWidget(self.course_input)
+
+        self.init_z_input = QLineEdit()
+        coord_input_layout.addWidget(QLabel('Initial Z:'))
+        coord_input_layout.addWidget(self.init_z_input)
+
+        self.dive_angle_input = QLineEdit()
+        coord_input_layout.addWidget(QLabel('Dive Angle (degrees):'))
+        coord_input_layout.addWidget(self.dive_angle_input)
 
         add_line_button = QPushButton('Add Line')
         add_line_button.clicked.connect(self.add_line)
         coord_input_layout.addWidget(add_line_button)
 
         self.fig_3d = plt.figure()
-        self.ax = self.fig_3d.add_subplot(121, projection='3d')  # Изменили на 121, чтобы разместить графики рядом
 
-        # Настройки 3D графика
+        self.ax = self.fig_3d.add_subplot(121, projection='3d')
+
         self.ax.set_xlabel('X')
         self.ax.set_ylabel('Y')
         self.ax.set_zlabel('Z')
-        self.ax.set_xlim(-10, 10)
-        self.ax.set_ylim(-10, 10)
-        self.ax.set_zlim(-10, 10)
+        self.ax.set_xlim(0, 1000)
+        self.ax.set_ylim(-100, 100)
+        self.ax.set_zlim(0, 1000)
 
         layout.addWidget(self.fig_3d.canvas)
 
         self.ax_2d = self.fig_3d.add_subplot(122)
         self.ax_2d.set_xlabel('X')
         self.ax_2d.set_ylabel('Z')
-        self.ax_2d.set_xlim(-10, 10)
-        self.ax_2d.set_ylim(-10, 10)
+        self.ax_2d.set_xlim(0, 1000)
+        self.ax_2d.set_ylim(-100, 100)
 
         layout.addWidget(self.fig_3d.canvas)
 
-        # Добавляем журнал координат в layout
         layout.addWidget(self.coords_log)
 
-        layout.addWidget(self.fig_3d.canvas)
-
-        # Создаем окно для вывода среднеквадратического отклонения
-        self.std_dev_label = QLabel('СКО: x={:.2f}, y={:.2f}, z={:.2f}'.format(*self.std_devs))
+        self.std_dev_label = QLabel('STD: x={:.2f}, y={:.2f}, z={:.2f}'.format(*self.std_devs))
         layout.addWidget(self.std_dev_label)
 
-        layout.addWidget(self.coords_log)
         self.show()
         self.show()
 
     def add_line(self):
-        start = (float(self.start_x_input.text()), float(self.start_y_input.text()), float(self.start_z_input.text()))
-        end = (float(self.end_x_input.text()), float(self.end_y_input.text()), float(self.end_z_input.text()))
+        angle = math.radians(float(self.angle_input.text()))
+        radius = float(self.radius_input.text())
+        distance = float(self.distance_input.text())
+        course = math.radians(float(self.course_input.text()))
+        init_z = float(self.init_z_input.text())
+        dive_angle = math.radians(float(self.dive_angle_input.text()))
 
-        line_color = (random.random(), random.random(), random.random())  # Генерация случайного цвета
-        self.coords.append((start, end, line_color))
+        end_x = distance + radius * math.cos(angle - course)
+        end_y = math.sin(angle - course) * radius
+        end_z = init_z
 
-        # Рисуем линии 3D и 2D координат
-        self.plot_3d_line(start, end, line_color)
+        end = (end_x, end_y, end_z)
+
+        image_x = (end_x-distance) * math.sin(dive_angle)
+
+        line_color = (random.random(), random.random(), random.random())
+
+        self.coords.append((end, line_color))
+
+        self.plot_3d_line(end, line_color)
         self.draw_2d_line(end, len(self.coords), line_color)
 
-        # Добавляем координаты в лог
-        log_entry = "Линия {0}: {1} -> {2}\n".format(len(self.coords), start, end)
+        log_entry = "Line {0}: (0, 0, 0) -> {1}\n".format(len(self.coords), end)
         self.coords_log.append(log_entry)
-        # Рассчитываем среднеквадратическое отклонение по каждой координате
+
+        self.coords_log.append(f" X: {end_x-distance:.2f}")
+        self.coords_log.append(f" Y: {end_y:.2f}")
+        self.coords_log.append(f" Image X: {image_x:.2f}")
+
         self.update_std_devs(end)
 
-        # Обновляем значение среднеквадратического отклонения в окне
         self.std_dev_label.setText('STD: x={:.2f}, y={:.2f}, z={:.2f}'.format(*self.std_devs))
 
     def update_std_devs(self, new_coords):
-        # Получаем массив координат конечных точек
-        coords_array = np.array([end for start, end, color in self.coords])
+        coords_array = np.array([end for end, color in self.coords])
 
-        # Добавляем новые координаты
         coords_array = np.vstack((coords_array, new_coords))
 
-        # Вычисляем среднеквадратическое отклонение по каждой координате
         self.std_devs = np.std(coords_array, axis=0)
 
-    def plot_3d_line(self, start, end, line_color):
-        xs = [start[0], end[0]]
-        ys = [start[1], end[1]]
-        zs = [start[2], end[2]]
+    def plot_3d_line(self, end, line_color):
+        xs = [0, end[0]]
+        ys = [0, end[1]]
+        zs = [0, end[2]]
         self.ax.plot(xs, ys, zs, color=line_color)
 
         self.fig_3d.canvas.draw()
@@ -124,9 +139,9 @@ class App(QWidget):
     def draw_2d_line(self, end, index, line_color):
         xs = end[0]
         zs = end[2]
-        self.ax_2d.scatter(xs, zs, color=line_color, marker='o')  # Рисуем точку на 2D-графике
+        self.ax_2d.scatter(xs, zs, color=line_color, marker='o')
 
-        self.fig_3d.canvas.draw()  # Обновляем графики
+        self.fig_3d.canvas.draw()
 
 
 if __name__ == '__main__':
