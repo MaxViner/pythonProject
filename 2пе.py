@@ -54,6 +54,10 @@ class App(QWidget):
         coord_input_layout.addWidget(QLabel('Dive Angle (degrees):'))
         coord_input_layout.addWidget(self.dive_angle_input)
 
+        self.target_radius_input = QLineEdit()
+        coord_input_layout.addWidget(QLabel('Target Radius:'))
+        coord_input_layout.addWidget(self.target_radius_input)
+
         add_line_button = QPushButton('Add Line')
         add_line_button.clicked.connect(self.add_line)
         coord_input_layout.addWidget(add_line_button)
@@ -62,9 +66,9 @@ class App(QWidget):
 
         self.ax = self.fig_3d.add_subplot(121, projection='3d')
 
-        self.ax.set_xlabel('X')
-        self.ax.set_ylabel('Y')
-        self.ax.set_zlabel('Z')
+        self.ax.set_xlabel('Distance')
+        self.ax.set_ylabel('Lateral Deviation')
+        self.ax.set_zlabel('Height')
         self.ax.set_xlim(0, 1000)
         self.ax.set_ylim(-100, 100)
         self.ax.set_zlim(0, 1000)
@@ -72,8 +76,8 @@ class App(QWidget):
         layout.addWidget(self.fig_3d.canvas)
 
         self.ax_2d = self.fig_3d.add_subplot(122)
-        self.ax_2d.set_xlabel('X')
-        self.ax_2d.set_ylabel('Z')
+        self.ax_2d.set_xlabel('Distance')
+        self.ax_2d.set_ylabel('Lateral Deviation')
         self.ax_2d.set_xlim(0, 1000)
         self.ax_2d.set_ylim(-100, 100)
 
@@ -94,10 +98,11 @@ class App(QWidget):
         course = math.radians(float(self.course_input.text()))
         init_z = float(self.init_z_input.text())
         dive_angle = math.radians(float(self.dive_angle_input.text()))
+        target_radius = float(self.target_radius_input.text())
 
         end_x = distance + radius * math.cos(angle - course)
         end_y = math.sin(angle - course) * radius
-        end_z = init_z
+        end_z = 0
 
         end = (end_x, end_y, end_z)
 
@@ -107,10 +112,11 @@ class App(QWidget):
 
         self.coords.append((end, line_color))
 
-        self.plot_3d_line(end, line_color)
+        self.plot_3d_line(init_z, end, line_color)
         self.draw_2d_line(end, len(self.coords), line_color)
+        self.draw_2d_circle(distance ,target_radius)
 
-        log_entry = "Line {0}: (0, 0, 0) -> {1}\n".format(len(self.coords), end)
+        log_entry = f"Line {len(self.coords)}: ({distance}, {init_z}, 0) -> {end}\n"
         self.coords_log.append(log_entry)
 
         self.coords_log.append(f" X: {end_x-distance:.2f}")
@@ -128,20 +134,27 @@ class App(QWidget):
 
         self.std_devs = np.std(coords_array, axis=0)
 
-    def plot_3d_line(self, end, line_color):
+    def plot_3d_line(self, initZ, end, line_color):
         xs = [0, end[0]]
         ys = [0, end[1]]
-        zs = [0, end[2]]
+        zs = [initZ, end[2]]
         self.ax.plot(xs, ys, zs, color=line_color)
 
         self.fig_3d.canvas.draw()
 
     def draw_2d_line(self, end, index, line_color):
         xs = end[0]
-        zs = end[2]
+        zs = end[1]
         self.ax_2d.scatter(xs, zs, color=line_color, marker='o')
 
         self.fig_3d.canvas.draw()
+
+    def draw_2d_circle(self, distance, radius):
+        circle = plt.Circle((distance, 0), radius, color='r', fill=False)
+        self.ax_2d.add_artist(circle)
+        self.fig_3d.canvas.draw()
+
+
 
 
 if __name__ == '__main__':
