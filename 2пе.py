@@ -1,10 +1,13 @@
-import math
 import sys
+import math
 import random
-import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QLineEdit, QTextEdit
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QLineEdit, QTextEdit
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
 
 class App(QWidget):
@@ -62,10 +65,11 @@ class App(QWidget):
         add_line_button.clicked.connect(self.add_line)
         coord_input_layout.addWidget(add_line_button)
 
-        self.fig_3d = plt.figure()
+        self.fig = plt.figure()
+        self.canvas = FigureCanvas(self.fig)
+        self.toolbar = NavigationToolbar(self.canvas, self)
 
-        self.ax = self.fig_3d.add_subplot(121, projection='3d')
-
+        self.ax = self.fig.add_subplot(121, projection='3d')
         self.ax.set_xlabel('Distance')
         self.ax.set_ylabel('Lateral Deviation')
         self.ax.set_zlabel('Height')
@@ -73,26 +77,22 @@ class App(QWidget):
         self.ax.set_ylim(-100, 100)
         self.ax.set_zlim(0, 1000)
 
-        layout.addWidget(self.fig_3d.canvas)
+        self.ax_2d = self.fig.add_subplot(122, polar=True)
+        self.ax_2d.set_theta_zero_location("N")
+        self.ax_2d.set_ylim(0, 100)
 
-        self.ax_2d = self.fig_3d.add_subplot(122)
-        self.ax_2d.set_xlabel('Distance')
-        self.ax_2d.set_ylabel('Lateral Deviation')
-        self.ax_2d.set_xlim(0, 1000)
-        self.ax_2d.set_ylim(-100, 100)
-
-        layout.addWidget(self.fig_3d.canvas)
-
+        layout.addWidget(self.toolbar)
+        layout.addWidget(self.canvas)
         layout.addWidget(self.coords_log)
 
         self.std_dev_label = QLabel('STD: x={:.2f}, y={:.2f}, z={:.2f}'.format(*self.std_devs))
         layout.addWidget(self.std_dev_label)
 
         self.show()
-        self.show()
 
     def add_line(self):
         angle = math.radians(float(self.angle_input.text()))
+
         radius = float(self.radius_input.text())
         distance = float(self.distance_input.text())
         course = math.radians(float(self.course_input.text()))
@@ -103,29 +103,48 @@ class App(QWidget):
         end_x = distance + radius * math.cos(angle - course)
         end_y = math.sin(angle - course) * radius
         end_z = 0
+        print(radius)
+        print(math.sin((angle-course)))
+        print(end_x)
+        print(end_y)
 
-        end = (end_x, end_y, end_z)
-
+        print(distance)
         image_x = (end_x-distance) * math.sin(dive_angle)
 
+        Xt=1000*image_x/distance
+        print(Xt)
+        Zt=1000*end_y/distance
+        print(Zt)
+
         line_color = (random.random(), random.random(), random.random())
+        end = (Xt, Zt, 0)
+        points3d=(Xt+distance,Zt,0)
 
         self.coords.append((end, line_color))
 
-        self.plot_3d_line(init_z, end, line_color)
-        self.draw_2d_line(end, len(self.coords), line_color)
-        self.draw_2d_circle(distance ,target_radius)
+        self.plot_3d_line(init_z, points3d, line_color)
+        end_angle = angle - course
+        polar_coords = (radius, end_angle)
 
-        log_entry = f"Line {len(self.coords)}: ({distance}, {init_z}, 0) -> {end}\n"
+        self.draw_2d_polar_point(polar_coords)
+
+        self.draw_2d_circle( target_radius)
+        self.draw_3d_circle(distance, target_radius)
+
+        log_entry = f"Line {len(self.coords)}: угол-{angle}, курс- {course}, пикирование -{dive_angle} ({distance}, {init_z}, 0) -> {end}\n"
         self.coords_log.append(log_entry)
 
-        self.coords_log.append(f" X: {end_x-distance:.2f}")
+        self.coords_log.append(f" X: {end_x:.2f}")
         self.coords_log.append(f" Y: {end_y:.2f}")
         self.coords_log.append(f" Image X: {image_x:.2f}")
 
         self.update_std_devs(end)
-
+        self.draw_2d_course_line(course)  # Add this line
         self.std_dev_label.setText('STD: x={:.2f}, y={:.2f}, z={:.2f}'.format(*self.std_devs))
+
+        std = self.std_devs
+
+        print(std)
 
     def update_std_devs(self, new_coords):
         coords_array = np.array([end for end, color in self.coords])
@@ -134,27 +153,50 @@ class App(QWidget):
 
         self.std_devs = np.std(coords_array, axis=0)
 
+    def get_std_devs(self):
+        return self.std_devs
+
     def plot_3d_line(self, initZ, end, line_color):
         xs = [0, end[0]]
         ys = [0, end[1]]
         zs = [initZ, end[2]]
         self.ax.plot(xs, ys, zs, color=line_color)
 
-        self.fig_3d.canvas.draw()
+        self.canvas.draw()
 
-    def draw_2d_line(self, end, index, line_color):
-        xs = end[0]
-        zs = end[1]
-        self.ax_2d.scatter(xs, zs, color=line_color, marker='o')
+    def draw_2d_polar_point(self, polar_coords):
+        radius, angle = polar_coords
+        self.ax_2d.scatter(angle, radius, marker='o')
 
-        self.fig_3d.canvas.draw()
+        self.canvas.draw()
 
-    def draw_2d_circle(self, distance, radius):
-        circle = plt.Circle((distance, 0), radius, color='r', fill=False)
-        self.ax_2d.add_artist(circle)
-        self.fig_3d.canvas.draw()
+    def draw_2d_circle(self, radius):
+        circle = plt.Circle((0, 0), radius, color='r', fill=False)
+        self.ax_2d.add_patch(circle)
+        self.ax_2d.set_aspect('equal')
+        self.fig.canvas.draw()
 
+    def draw_2d_course_line(self, course):
+        max_radius = max(self.ax_2d.get_ylim())
+        start_point = (0, 0)
+        end_point = (max_radius * np.cos(course), max_radius * np.sin(course))
+        self.ax_2d.plot([-100, end_point[1]], [100, end_point[0]], 'r--')
+        self.ax_2d.text(end_point[1], end_point[0], 'Курс', fontsize=10, color='red')
+        self.canvas.draw()
 
+    def draw_3d_circle(self, distance, radius):
+        theta = np.linspace(0, 2 * np.pi, 100)
+        x = distance + radius * np.cos(theta)
+        y = radius * np.sin(theta)
+        z = np.zeros_like(x)
+
+        points = np.array([x, y, z]).T.reshape(-1, 1, 3)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+        lc = Line3DCollection(segments, colors='r', linewidths=1)
+        self.ax.add_collection(lc)
+
+        self.canvas.draw()
 
 
 if __name__ == '__main__':
