@@ -73,7 +73,7 @@ class App(QWidget):
         self.ax.set_xlabel('Distance')
         self.ax.set_ylabel('Lateral Deviation')
         self.ax.set_zlabel('Height')
-        self.ax.set_xlim(0, 1000)
+        self.ax.set_xlim(-1000, 1000)
         self.ax.set_ylim(-100, 100)
         self.ax.set_zlim(0, 1000)
 
@@ -100,9 +100,17 @@ class App(QWidget):
         dive_angle = math.radians(float(self.dive_angle_input.text()))
         target_radius = float(self.target_radius_input.text())
 
-        end_x = distance + radius * math.cos(angle - course)
-        end_y = math.sin(angle - course) * radius
+        end_x = distance * math.cos(angle)
+        end_y = distance * math.sin(angle)
         end_z = 0
+
+        init_x = end_x - distance * math.cos(dive_angle)
+        init_y = end_y - distance * math.sin(dive_angle)
+        init_z = distance * math.sin(dive_angle)
+
+        line_color = (random.random(), random.random(), random.random())
+        end = (end_x, end_y, end_z)
+        init = (init_x, init_y, init_z)
         print(radius)
         print(math.sin((angle-course)))
         print(end_x)
@@ -122,13 +130,12 @@ class App(QWidget):
 
         self.coords.append((end, line_color))
 
-        self.plot_3d_line(init_z, points3d, line_color)
+        self.plot_3d_line(init, end, line_color)
         end_angle = angle - course
         polar_coords = (radius, end_angle)
 
         self.draw_2d_polar_point(polar_coords)
 
-        self.draw_2d_circle( target_radius)
         self.draw_3d_circle(distance, target_radius)
 
         log_entry = f"Line {len(self.coords)}: угол-{angle}, курс- {course}, пикирование -{dive_angle} ({distance}, {init_z}, 0) -> {end}\n"
@@ -142,7 +149,7 @@ class App(QWidget):
         self.draw_2d_course_line(course)  # Add this line
         self.std_dev_label.setText('STD: x={:.2f}, y={:.2f}, z={:.2f}'.format(*self.std_devs))
 
-        std = self.std_devs
+        std = self.get_std_devs()
 
         print(std)
 
@@ -156,10 +163,10 @@ class App(QWidget):
     def get_std_devs(self):
         return self.std_devs
 
-    def plot_3d_line(self, initZ, end, line_color):
-        xs = [0, end[0]]
-        ys = [0, end[1]]
-        zs = [initZ, end[2]]
+    def plot_3d_line(self, init, end, line_color):
+        xs = [init[0], end[0]]
+        ys = [init[1], end[1]]
+        zs = [init[2], end[2]]
         self.ax.plot(xs, ys, zs, color=line_color)
 
         self.canvas.draw()
@@ -178,10 +185,10 @@ class App(QWidget):
 
     def draw_2d_course_line(self, course):
         max_radius = max(self.ax_2d.get_ylim())
-        start_point = (0, 0)
-        end_point = (max_radius * np.cos(course), max_radius * np.sin(course))
-        self.ax_2d.plot([-100, end_point[1]], [100, end_point[0]], 'r--')
-        self.ax_2d.text(end_point[1], end_point[0], 'Курс', fontsize=10, color='red')
+        end_angle = course
+        end_radius = max_radius
+        self.ax_2d.plot([0, end_angle], [0, end_radius], 'r--')
+        self.ax_2d.text(end_angle, end_radius, 'Курс', fontsize=10, color='red')
         self.canvas.draw()
 
     def draw_3d_circle(self, distance, radius):
