@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
+from Extended3DGraph import Extended3DGraph
+from Polar2DGraph import Polar2DGraph
+from ThreeDGraph import ThreeDGraph
 
 class App(QWidget):
     def __init__(self):
@@ -22,13 +24,12 @@ class App(QWidget):
         self.coords = []
         self.std_devs = [0, 0, 0]
         self.init_ui()
-
+        self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
         self.mean_coords = [0, 0, 0]
+
     def init_ui(self):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-
-
         layout = QVBoxLayout()
         self.setLayout(layout)
 
@@ -74,23 +75,17 @@ class App(QWidget):
         add_line_button = QPushButton('Add Line')
         add_line_button.clicked.connect(self.add_line)
         coord_input_layout2.addWidget(add_line_button)
+
         self.fig = plt.figure()
         self.canvas = FigureCanvas(self.fig)
         self.toolbar = NavigationToolbar(self.canvas, self)
+
         self.ax = self.fig.add_subplot(121, projection='3d')
-        self.ax.set_xlabel('Distance')
-        self.ax.set_ylabel('Lateral Deviation')
-        self.ax.set_zlabel('Height')
-        self.ax.set_xlim(-1000, 1000)
-        self.ax.set_ylim(-500, 500)
-        self.ax.set_zlim(0, 1000)
-        self.ax.plot([-1000, 1000], [0, 0], [0, 0], color='black')
-        self.ax.plot([0, 0], [-1000, 1000], [0, 0], color='black')
-        self.ax.plot([0, 0], [0, 0], [0, 1000], color='black')
+        self.three_d_graph = ThreeDGraph(self.ax)
+
         self.ax_2d = self.fig.add_subplot(122, polar=True)
-        self.ax_2d.set_theta_zero_location("N")
-        self.ax_2d.set_ylim(0, 100)
-        self.course_line = None
+        self.polar_2d_graph = Polar2DGraph(self.ax_2d)
+
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
         layout.addWidget(self.coords_log)
@@ -98,6 +93,10 @@ class App(QWidget):
         layout.addWidget(self.std_dev_label)
         self.std_dev_label.setStyleSheet("font-size: 20px")
 
+        # добавить кнопку "Открыть в отдельном окне"
+        open_in_new_window_button = QPushButton('Открыть в отдельном окне')
+        open_in_new_window_button.clicked.connect(self.open_in_new_window)
+        layout.addWidget(open_in_new_window_button)
 
         self.show()
 
@@ -118,12 +117,15 @@ class App(QWidget):
         line_color = (random.random(), random.random(), random.random())
         end = (end_x, end_y, end_z)
         self.coords.append((end, line_color))
-        self.plot_3d_line(init, end, line_color)
+        self.three_d_graph.plot_3d_line(init, end, line_color)
         end_angle = angle - course
         print(end_angle)
         polar_coords = (radius, end_angle)
-        self.draw_2d_polar_point(polar_coords)
-        self.draw_3d_circle(end_x, target_radius)
+
+        self.polar_2d_graph.draw_2d_polar_point(polar_coords)
+        self.polar_2d_graph.draw_2d_course_line(course)
+
+        self.three_d_graph.draw_3d_circle(end_x, target_radius)
         Image_x = (end_x - distance) * math.sin(dive_angle)
         Xt=1000*Image_x/distance
         Yt=1000*end_y/distance
@@ -138,28 +140,45 @@ class App(QWidget):
         STD_coords=[Xt,Yt,0]
         print(STD_coords)
         self.update_std_devs(end)
-        self.draw_2d_polar_point(polar_coords)
 
-        # Remove the old course line if it exists
-        if self.course_line is not None:
-            self.course_line.remove()
 
-        # Draw a new course line and save it to a variable
-        self.course_line = self.draw_2d_course_line(course)
 
         # Add angle labels on the 3D graph
-        self.draw_angle_labels(end_angle)
+        self.three_d_graph.draw_angle_labels(end_angle)
 
         std = self.get_std_devs()
 
         print(std)
 
-    def draw_angle_labels(self, end_angle):
-        # Add a function to draw angle labels on the 3D graph
-        angle_label_x = 500 * math.cos(end_angle)
-        angle_label_y = 500 * math.sin(end_angle)
-        self.ax.text(angle_label_x, angle_label_y, 0, f"{math.degrees(end_angle):.1f}°", fontsize=10, color="blue")
+    def on_scroll(self, event):
+        ax = event.inaxes
+        if ax is None:
+            return
+
+        scale = 1.2 if event.button == 'up' else 0.8
+        ax.set_xlim(ax.get_xlim()[0] * scale, ax.get_xlim()[1] * scale)
+        ax.set_ylim(ax.get_ylim()[0] * scale, ax.get_ylim()[1] * scale)
+        ax.set_zlim(ax.get_zlim()[0] * scale, ax.get_zlim()[1] * scale)
         self.canvas.draw()
+
+        # функция для открытия графика в отдельном окне с дополнительным функционалом
+
+    def open_in_new_window(self):
+        print("Открываем график в отдельном окне...")
+        # Create a new instance of the Extended3DGraph class
+        extended_graph = Extended3DGraph(self)
+
+        # Copy the existing plot data to the new graph
+        for end, line_color in self.coords:
+            init = (0, 0, 0)
+            extended_graph.plot_3d_line(init, end, line_color)
+
+        # Add any additional features or data to the extended_graph as needed
+
+        extended_graph.show()
+
+
+
     def update_std_devs(self, new_coords):
         coords_array = np.array([end for end, color in self.coords])
         print("do")
@@ -175,36 +194,9 @@ class App(QWidget):
     def get_std_devs(self):
         return self.std_devs
 
-    def plot_3d_line(self, init, end, line_color):
-        xs = [init[0], end[0]]
-        ys = [init[1], end[1]]
-        zs = [init[2], end[2]]
-        self.ax.plot(xs, ys, zs, color=line_color)
-        self.canvas.draw()
 
-    def draw_2d_polar_point(self, polar_coords):
-        radius, angle = polar_coords
-        self.ax_2d.scatter(angle, radius, marker='o')
-        self.canvas.draw()
-    def draw_2d_course_line(self, course):
-        max_radius = max(self.ax_2d.get_ylim())
-        end_angle = course
-        end_radius = max_radius
-        course_line, = self.ax_2d.plot([0, end_angle], [0, end_radius], 'r--')
-        self.ax_2d.text(end_angle, end_radius, 'Курс', fontsize=10, color='red')
-        self.canvas.draw()
-        return course_line  # Return the course line object
 
-    def draw_3d_circle(self, x, rradius):
-        theta = np.linspace(0, 2 * np.pi, 100)
-        xc = x + rradius * np.cos(theta)  # X-coordinate is x+radius*cos(theta)
-        yc = rradius * np.sin(theta)  # Y-coordinate is y+radius*sin(theta)
-        zc = np.zeros_like(xc)  # Z-coordinate is always zero in 2D
-        points = np.array([xc, yc, zc]).T.reshape(-1, 1, 3)
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = Line3DCollection(segments, colors='r', linewidths=1)
-        self.ax.add_collection(lc)
-        self.canvas.draw()
+
 
 
 if __name__ == '__main__':
