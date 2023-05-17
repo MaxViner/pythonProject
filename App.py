@@ -2,12 +2,14 @@ import sys
 import math
 import random
 import numpy as np
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QLineEdit, QTextEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QLineEdit, QTextEdit, \
+    QTableWidgetItem, QHeaderView, QTableWidget
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
+from CalculationsTable import CalculationsTable
 from Extended3DGraph import Extended3DGraph
 from Polar2DGraph import Polar2DGraph
 from ThreeDGraph import ThreeDGraph
@@ -93,10 +95,23 @@ class App(QWidget):
         layout.addWidget(self.std_dev_label)
         self.std_dev_label.setStyleSheet("font-size: 20px")
 
+        self.calculations_table = CalculationsTable(self.coords, self.std_devs, {
+            "distance": 0,
+            "dive_angle": 0,
+            "init_z": 0,
+        })
+
         # добавить кнопку "Открыть в отдельном окне"
         open_in_new_window_button = QPushButton('Открыть в отдельном окне')
         open_in_new_window_button.clicked.connect(self.open_in_new_window)
         layout.addWidget(open_in_new_window_button)
+
+        # Add "Show Calculations" button
+        self.show_calculations_button = QPushButton('Показать расчеты')
+        self.show_calculations_button.clicked.connect(self.show_calculations)
+        layout.addWidget(self.show_calculations_button)
+        # Initialize calculations table instance
+        self.calculations_table = CalculationsTable(self.coords, self.std_devs)
 
         self.show()
 
@@ -104,6 +119,7 @@ class App(QWidget):
         angle = math.radians(float(self.angle_input.text()))
         radius = float(self.radius_input.text())
         distance = float(self.distance_input.text())
+
         course = math.radians(float(self.course_input.text()))
         init_z = float(self.init_z_input.text())
         dive_angle = math.radians(float(self.dive_angle_input.text()))
@@ -126,9 +142,10 @@ class App(QWidget):
         self.polar_2d_graph.draw_2d_course_line(course)
 
         self.three_d_graph.draw_3d_circle(end_x, target_radius)
-        Image_x = (end_x - distance) * math.sin(dive_angle)
-        Xt=1000*Image_x/distance
-        Yt=1000*end_y/distance
+
+        Image_x=end_x*math.sin(dive_angle)
+        Xt=Image_x*1000/distance
+        Yt=end_y*1000/distance
         log_entry = f"Line {len(self.coords)}: Angle-{angle},\n" \
                     f"X={end_x-distance} Z={end_y} Хкарт={Image_x}\n Xт={Xt}  Zt={Yt}\n" \
                     f"Course- {course}, Dive Angle -{dive_angle} ({0}, 0, {init_z})) -> {end}\n"
@@ -137,11 +154,16 @@ class App(QWidget):
         self.coords_log.append(f" Y: {end_y:.2f}")
         print("Xt Yt")
 
-        STD_coords=[Xt,Yt,0]
-        print(STD_coords)
+        # Update calculations table
         self.update_std_devs(end)
-
-
+        params = {
+            "distance": float(self.distance_input.text()),
+            "dive_angle": math.radians(float(self.dive_angle_input.text())),
+            "init_z": float(self.init_z_input.text()),
+            "course": math.radians(float(self.course_input.text())),
+        }
+        self.update_calculations_table(params)
+        self.calculations_table.update_table(self.coords, self.std_devs, params)
 
         # Add angle labels on the 3D graph
         self.three_d_graph.draw_angle_labels(end_angle)
@@ -149,7 +171,6 @@ class App(QWidget):
         std = self.get_std_devs()
 
         print(std)
-
     def on_scroll(self, event):
         ax = event.inaxes
         if ax is None:
@@ -177,27 +198,22 @@ class App(QWidget):
 
         extended_graph.show()
 
-
-
     def update_std_devs(self, new_coords):
         coords_array = np.array([end for end, color in self.coords])
-        print("do")
-        print(coords_array)
         coords_array = np.vstack((coords_array, new_coords))
-
-        # print(coords_array)
         self.std_devs = np.std(coords_array, axis=0)
         self.mean_coords = np.mean(coords_array, axis=0)
-
         self.std_dev_label.setText('STD: x={:.2f}, y={:.2f}, z={:.2f}, Mean: x={:.2f}, y={:.2f}, z={:.2f}'.format(
             *self.std_devs, *self.mean_coords))
+
+    def update_calculations_table(self, params):
+        self.calculations_table.update_data(self.coords, self.std_devs, params)
     def get_std_devs(self):
         return self.std_devs
 
 
-
-
-
+    def show_calculations(self):
+        self.calculations_table.show()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
