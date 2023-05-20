@@ -6,6 +6,7 @@ from PyQt5.QtCore import QFile, QTextStream
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QLineEdit, QTextEdit, \
     QTableWidgetItem, QHeaderView, QTableWidget
 import matplotlib.pyplot as plt
+
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -26,9 +27,10 @@ class App(QWidget):
         self.coords_log = QTextEdit()
         self.coords = []
         self.std_devs = [0, 0, 0]
+        self.mean_coords = [0, 0, 0]
         self.init_ui()
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
-        self.mean_coords = [0, 0, 0]
+
 
     def init_ui(self):
         self.setWindowTitle(self.title)
@@ -96,7 +98,7 @@ class App(QWidget):
         layout.addWidget(self.std_dev_label)
         self.std_dev_label.setStyleSheet("font-size: 20px")
 
-        self.calculations_table = CalculationsTable(self.coords, self.std_devs, {
+        self.calculations_table = CalculationsTable(self.coords, self.std_devs, self.mean_coords, {
             "distance": 0,
             "dive_angle": 0,
             "init_z": 0,
@@ -113,7 +115,7 @@ class App(QWidget):
         self.show_calculations_button.clicked.connect(self.show_calculations)
         layout.addWidget(self.show_calculations_button)
         # Initialize calculations table instance
-        self.calculations_table = CalculationsTable(self.coords, self.std_devs)
+        self.calculations_table = CalculationsTable(self.coords, self.std_devs, self.mean_coords)
 
         self.clear_graphs_button = QPushButton('Очистить графики')
         self.clear_graphs_button.clicked.connect(self.clear_graphs)
@@ -139,66 +141,73 @@ class App(QWidget):
                                 self.target_radius_input]:
                 input_field.setStyleSheet("border: 1px solid #76797C;")
                 input_field.setPlaceholderText("")
-        angle = math.radians(float(self.angle_input.text()))
-        radius = float(self.radius_input.text())
-        distance = float(self.distance_input.text())
+        try:
+            angle = math.radians(float(self.angle_input.text()))
+            radius = float(self.radius_input.text())
+            distance = float(self.distance_input.text())
 
-        course = math.radians(float(self.course_input.text()))
-        init_z = float(self.init_z_input.text())
-        dive_angle = math.radians(float(self.dive_angle_input.text()))
-        target_radius = float(self.target_radius_input.text())
-        end_x = distance + radius * math.cos(angle-course)
-        end_y = radius * math.sin(angle-course)
-        end_z = 0
-        init_x = 0
-        init_y = 0
-        init = (init_x, init_y, init_z)
-        line_color = (random.random(), random.random(), random.random())
-        end = (end_x, end_y, end_z)
-        self.coords.append((end, line_color))
-        self.three_d_graph.plot_3d_line(init, end, line_color)
-        end_angle = angle - course
-        print(end_angle)
-        polar_coords = (radius, end_angle)
+            course = math.radians(float(self.course_input.text()))
+            init_z = float(self.init_z_input.text())
+            dive_angle = math.radians(float(self.dive_angle_input.text()))
+            target_radius = float(self.target_radius_input.text())
+            end_x = distance + radius * math.cos(angle - course)
+            end_y = radius * math.sin(angle - course)
+            end_z = 0
+            init_x = 0
+            init_y = 0
+            init = (init_x, init_y, init_z)
+            line_color = (random.random(), random.random(), random.random())
+            end = (end_x, end_y, end_z)
+            self.coords.append((end, line_color))
+            self.three_d_graph.plot_3d_line(init, end, line_color)
+            end_angle = angle - course
+            print(end_angle)
+            polar_coords = (radius, end_angle)
 
-        self.polar_2d_graph.draw_2d_polar_point(polar_coords)
-        self.polar_2d_graph.draw_2d_course_line(course)
+            self.polar_2d_graph.draw_2d_polar_point(polar_coords)
+            self.polar_2d_graph.draw_2d_course_line(course)
 
-        self.three_d_graph.draw_3d_circle(end_x, target_radius)
+            self.three_d_graph.draw_3d_circle(end_x, target_radius)
 
-        Image_x=end_x*math.sin(dive_angle)
-        Xt=Image_x*1000/distance
-        Yt=end_y*1000/distance
-        log_entry = f"Line {len(self.coords)}: угол места цели -{angle},\n" \
-                    f"X={end_x-distance}" \
-                    f"Z={end_y}" \
-                    f"Хкарт={Image_x}\n" \
-                    f"Xт={Xt}  Zt={Yt}\n" \
-                    f"курс- {course}, угол пик - {dive_angle} \n({0}, 0, {init_z})) -> {end}\n"
-        self.coords_log.append(log_entry)
-        self.coords_log.append(f" X: {end_x:.2f}")
-        self.coords_log.append(f" Y: {end_y:.2f}")
+            Image_x = end_x * math.sin(dive_angle)
+            Xt = Image_x * 1000 / distance
+            Yt = end_y * 1000 / distance
+            log_entry = f"Line {len(self.coords)}: угол места цели -{angle},\n" \
+                        f"X={end_x - distance}" \
+                        f"Z={end_y}" \
+                        f"Хкарт={Image_x}\n" \
+                        f"Xт={Xt}  Zt={Yt}\n" \
+                        f"курс- {course}, угол пик - {dive_angle} \n({0}, 0, {init_z})) -> {end}\n"
+            self.coords_log.append(log_entry)
+            self.coords_log.append(f" X: {end_x:.2f}")
+            self.coords_log.append(f" Y: {end_y:.2f}")
 
+            # Update calculations table
+            print("до сюда норм")
+            self.update_std_devs(end)
+            params = {
+                "distance": float(self.distance_input.text()),
+                "dive_angle": (float(self.dive_angle_input.text())),
+                "init_z": float(self.init_z_input.text()),
+                "course": (float(self.course_input.text())),
+                "angle": (float(self.angle_input.text())),
+                "radiys": float(self.radius_input.text())
+            }
 
-        # Update calculations table
-        self.update_std_devs(end)
-        params = {
-            "distance": float(self.distance_input.text()),
-            "dive_angle": (float(self.dive_angle_input.text())),
-            "init_z": float(self.init_z_input.text()),
-            "course": (float(self.course_input.text())),
-            "angle": (float(self.angle_input.text())),
-            "radiys": float(self.radius_input.text())
-        }
-        self.update_calculations_table(params)
-        self.calculations_table.update_table(self.coords, self.std_devs, params)
+            self.update_calculations_table(params)
+            self.calculations_table.update_table(self.coords, self.std_devs, self.mean_coords, params)
 
-        # Add angle labels on the 3D graph
-        self.three_d_graph.draw_angle_labels(end_angle)
+            # Add angle labels on the 3D graph
+            self.three_d_graph.draw_angle_labels(end_angle)
 
-        std = self.get_std_devs()
+            std = self.get_std_devs()
 
-        print(std)
+            print(std)
+            print("add line отработал ")
+
+        except ValueError as e:
+            error_message = f"Error: {str(e)}"
+            print(error_message)
     def on_scroll(self, event):
         ax = event.inaxes
         if ax is None:
@@ -231,11 +240,27 @@ class App(QWidget):
         coords_array = np.vstack((coords_array, new_coords))
         self.std_devs = np.std(coords_array, axis=0)
         self.mean_coords = np.mean(coords_array, axis=0)
+        print(self.mean_coords)
         self.std_dev_label.setText('STD: x={:.2f}, y={:.2f}, z={:.2f}, Mean: x={:.2f}, y={:.2f}, z={:.2f}'.format(
             *self.std_devs, *self.mean_coords))
 
+        params = {
+            "distance": float(self.distance_input.text()),
+            "dive_angle": (float(self.dive_angle_input.text())),
+            "init_z": float(self.init_z_input.text()),
+            "course": (float(self.course_input.text())),
+            "angle": (float(self.angle_input.text())),
+            "radiys": float(self.radius_input.text())
+        }
+
+        # Update the calculations table with the correct parameters
+        print('do table')
+        self.update_calculations_table(params)
+
     def update_calculations_table(self, params):
-        self.calculations_table.update_data(self.coords, self.std_devs, params)
+        self.calculations_table.update_table(self.coords, self.std_devs, self.mean_coords, params)
+
+
     def get_std_devs(self):
         return self.std_devs
 
