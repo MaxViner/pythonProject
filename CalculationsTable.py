@@ -36,8 +36,9 @@ class CalculationsTable(QWidget):
             'Х_карт= Х * sin(угол_пик)',
             'Xt= (1000 * X / distance)',
             'Yt= (1000 * Y / distance)',
-            'X_mean', 'Y_mean', 'Z_mean',  # Добавляем средние значения в заголовки таблицы
-            'X_std', 'Y_std', 'Z_std',
+            'математическое ожидание',
+            'отклонение координат\n от мат.ожидания'# Добавляем средние значения в заголовки таблицы
+            'СКО координат', 'итоговое СКО',
         ]
         self.calculations_table.setHorizontalHeaderLabels(headers)
 
@@ -87,7 +88,7 @@ class CalculationsTable(QWidget):
             end_x, end_y, end_z = end
             x_std, y_std, z_std = self.std_devs
             params_item = QTableWidgetItem(
-                f"дальность: {distance}\nугол пик (deg): {180 / math.pi * (dive_angle)}\nвысота пука: {init_z}"
+                f"дальность: {distance}\nугол пик (deg): {180 / math.pi * (dive_angle)}\nвысота пуcка: {init_z}"
                 f"\nкурс-{course} \n"
                 f"угол места цели- {angle}\n"
                 f"радиус-{radius}"
@@ -100,11 +101,28 @@ class CalculationsTable(QWidget):
             )
             end_points = QTableWidgetItem(
                 f"Х-{end_x})\n"
-                f"Z-{end_z}"
+                f"Z-{end_y}"
             )
             image_x = (end_x - distance) * math.sin(dive_angle)
             xt = 1000 * image_x / distance
             yt = 1000 * end_y / distance
+
+            Avetage_coors=QTableWidgetItem(
+                f"Х-{x_mean})\n"
+                f"Z-{y_mean}"
+            )
+
+            Dif_Aver_coord=QTableWidgetItem(
+                f"Х-{end_x-x_mean})\n"
+                f"Z-{end_y-y_mean}"
+            )
+
+            SKO_coord=QTableWidgetItem(
+                f"Х-{x_std})\n"
+                f"Z-{y_std}"
+            )
+
+
 
             self.calculations_table.insertRow(i)
             self.calculations_table.setItem(i, 0, params_item)
@@ -113,11 +131,7 @@ class CalculationsTable(QWidget):
             self.calculations_table.setItem(i, 3, QTableWidgetItem(str(image_x)))
             self.calculations_table.setItem(i, 4, QTableWidgetItem(str(xt)))
             self.calculations_table.setItem(i, 5, QTableWidgetItem(str(yt)))
-            self.calculations_table.setItem(i, 6,
-                                            QTableWidgetItem(str(x_mean)))  # Добавляем средние координаты X в таблицу
-            self.calculations_table.setItem(i, 7,
-                                            QTableWidgetItem(str(y_mean)))  # Добавляем средние координаты Y в таблицу
-            self.calculations_table.setItem(i, 8, QTableWidgetItem(str(z_mean)))
-            self.calculations_table.setItem(i, 9, QTableWidgetItem(str(x_std)))
-            self.calculations_table.setItem(i, 10, QTableWidgetItem(str(y_std)))
-            self.calculations_table.setItem(i, 11, QTableWidgetItem(str(z_std)))
+            self.calculations_table.setItem(i, 6, Avetage_coors )
+            self.calculations_table.setItem(i, 7, Dif_Aver_coord)
+            self.calculations_table.setItem(i, 8, SKO_coord)
+            self.calculations_table.setItem(i, 9, QTableWidgetItem(str(math.sqrt(x_std*x_std+y_std*y_std))))
