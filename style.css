@@ -1,0 +1,60 @@
+/* Set the global font and background color */
+* {
+    font-family: "Courier New", monospace;
+    background-color: #2C3E50;
+    color: #FFFFFF;
+}
+
+/* Style buttons */
+QPushButton {
+    background-color: #34495E;
+    border: 2px solid #2980B9;
+    border-radius: 5px;
+    padding: 5px;
+}
+
+QPushButton:hover {
+    background-color: #2980B9;
+    box-shadow: 0 0 10px #2980B9;
+    color: #FFFFFF;
+}
+
+/* Style labels */
+QLabel {
+    color: #FFFFFF;
+}
+
+/* Style line edits */
+QLineEdit {
+    background-color: #34495E;
+    border: 2px solid #7F8C8D;
+    border-radius: 5px;
+    padding: 2px 4px;
+}
+
+/* Style text edits */
+QTextEdit {
+    background-color: #34495E;
+    border: 2px solid #7F8C8D;
+    border-radius: 5px;
+    padding: 2px 4px;
+    font-size:20px;
+}
+
+/* Style table widgets */
+QTableWidget {
+    background-color: #34495E;
+    border: 2px solid #7F8C8D;
+    border-radius: 5px;
+    padding: 2px 4px;
+}
+
+QHeaderView::section {
+    background-color: #34495E;
+    border: 1px solid #2C3E50;
+    padding: 2px 4px;
+}
+
+QTableWidget::item {
+    border: 1px solid #2C3E50;
+}

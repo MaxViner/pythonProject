@@ -35,3 +35,13 @@ class ThreeDGraph:
         angle_label_x = 500 * np.cos(end_angle)
         angle_label_y = 500 * np.sin(end_angle)
         self.ax.text(angle_label_x, angle_label_y, 0, f"{np.degrees(end_angle):.1f}°", fontsize=10, color="blue")
+
+    # В классе ThreeDGraph
+    def clear(self):
+        self.ax.clear()
+        self.ax.set_xlabel('X')
+        self.ax.set_ylabel('Y')
+        self.ax.set_zlabel('Z')
+        self.ax.plot([-1000, 1000], [0, 0], [0, 0], color='black')
+        self.ax.plot([0, 0], [-1000, 1000], [0, 0], color='black')
+        self.ax.plot([0, 0], [0, 0], [0, 1000], color='black')

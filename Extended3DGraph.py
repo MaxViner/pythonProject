@@ -37,12 +37,13 @@ class Extended3DGraph(QWidget):
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
 
-        def plot_3d_line(self, init, end, line_color):
-            xs = [init[0], end[0]]
-            ys = [init[1], end[1]]
-            zs = [init[2], end[2]]
-            self.ax.plot(xs, ys, zs, color=line_color)
-            self.canvas.draw()
         # Add extra features here
 
         self.show()
+
+    def plot_3d_line(self, init, end, line_color):
+        xs = [init[0], end[0]]
+        ys = [init[1], end[1]]
+        zs = [init[2], end[2]]
+        self.ax.plot(xs, ys, zs, color=line_color)
+        self.canvas.draw()

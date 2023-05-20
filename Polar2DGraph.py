@@ -21,3 +21,12 @@ class Polar2DGraph:
         self.ax.text(end_angle, end_radius, 'Курс', fontsize=10, color='red')
         plt.draw()
         return course_line  # Return the course line object
+
+        # В классе Polar2DGraph
+
+    def clear(self):
+        self.ax.clear()
+        self.ax.set_theta_zero_location('N')
+        self.ax.set_theta_direction(-1)
+        self.ax.set_rlabel_position(135)
+        self.ax.set_xlabel('X', fontsize=14)

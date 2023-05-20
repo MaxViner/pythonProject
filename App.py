@@ -2,6 +2,7 @@ import sys
 import math
 import random
 import numpy as np
+from PyQt5.QtCore import QFile, QTextStream
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QLabel, QLineEdit, QTextEdit, \
     QTableWidgetItem, QHeaderView, QTableWidget
 import matplotlib.pyplot as plt
@@ -18,10 +19,10 @@ class App(QWidget):
     def __init__(self):
         super().__init__()
         self.title = '2D and 3D Plots'
-        self.left = 10
-        self.top = 10
-        self.width = 640
-        self.height = 480
+        self.left = 50
+        self.top = 50
+        self.width = 1200
+        self.height = 800
         self.coords_log = QTextEdit()
         self.coords = []
         self.std_devs = [0, 0, 0]
@@ -39,17 +40,17 @@ class App(QWidget):
         layout.addLayout(coord_input_layout)
 
         self.distance_input = QLineEdit()
-        coord_input_layout.addWidget(QLabel('Distance:'))
+        coord_input_layout.addWidget(QLabel('Дистанция:'))
         coord_input_layout.addWidget(self.distance_input)
         self.distance_input.setStyleSheet("font-size: 20px")
 
         self.course_input = QLineEdit()
-        coord_input_layout.addWidget(QLabel('Course:'))
+        coord_input_layout.addWidget(QLabel('Курс:'))
         coord_input_layout.addWidget(self.course_input)
         self.course_input.setStyleSheet("font-size: 20px")
 
         self.init_z_input = QLineEdit()
-        coord_input_layout.addWidget(QLabel('Initial Z:'))
+        coord_input_layout.addWidget(QLabel('Начальный Z:'))
         coord_input_layout.addWidget(self.init_z_input)
         self.init_z_input.setStyleSheet("font-size: 20px")
 
@@ -57,24 +58,24 @@ class App(QWidget):
         layout.addLayout(coord_input_layout2)
 
         self.angle_input = QLineEdit()
-        coord_input_layout2.addWidget(QLabel('Angle (degrees):'))
+        coord_input_layout2.addWidget(QLabel('Угол (градусы):'))
         coord_input_layout2.addWidget(self.angle_input)
         self.angle_input.setStyleSheet("font-size: 20px")
 
         self.radius_input = QLineEdit()
-        coord_input_layout2.addWidget(QLabel('Radius:'))
+        coord_input_layout2.addWidget(QLabel('Радиус:'))
         coord_input_layout2.addWidget(self.radius_input)
         self.radius_input.setStyleSheet("font-size: 20px")
 
         self.dive_angle_input = QLineEdit()
-        coord_input_layout2.addWidget(QLabel('Dive Angle (degrees):'))
+        coord_input_layout2.addWidget(QLabel('Угол погружения (градусы):'))
         coord_input_layout2.addWidget(self.dive_angle_input)
         self.dive_angle_input.setStyleSheet("font-size: 20px")
         self.target_radius_input = QLineEdit()
-        coord_input_layout2.addWidget(QLabel('Target Radius:'))
+        coord_input_layout2.addWidget(QLabel('Радиус цели:'))
         coord_input_layout2.addWidget(self.target_radius_input)
         self.target_radius_input.setStyleSheet("font-size: 20px")
-        add_line_button = QPushButton('Add Line')
+        add_line_button = QPushButton('Добавить линию')
         add_line_button.clicked.connect(self.add_line)
         coord_input_layout2.addWidget(add_line_button)
 
@@ -91,7 +92,7 @@ class App(QWidget):
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
         layout.addWidget(self.coords_log)
-        self.std_dev_label = QLabel('STD: x={:.2f}, y={:.2f}, z={:.2f}'.format(*self.std_devs))
+        self.std_dev_label = QLabel('СКО: x={:.2f}, y={:.2f}, z={:.2f}'.format(*self.std_devs))
         layout.addWidget(self.std_dev_label)
         self.std_dev_label.setStyleSheet("font-size: 20px")
 
@@ -104,18 +105,40 @@ class App(QWidget):
         # добавить кнопку "Открыть в отдельном окне"
         open_in_new_window_button = QPushButton('Открыть в отдельном окне')
         open_in_new_window_button.clicked.connect(self.open_in_new_window)
+        open_in_new_window_button.setDisabled(True)
         layout.addWidget(open_in_new_window_button)
 
-        # Add "Show Calculations" button
+        # Add "Показать расчеты" button
         self.show_calculations_button = QPushButton('Показать расчеты')
         self.show_calculations_button.clicked.connect(self.show_calculations)
         layout.addWidget(self.show_calculations_button)
         # Initialize calculations table instance
         self.calculations_table = CalculationsTable(self.coords, self.std_devs)
 
+        self.clear_graphs_button = QPushButton('Очистить графики')
+        self.clear_graphs_button.clicked.connect(self.clear_graphs)
+        layout.addWidget(self.clear_graphs_button)
+
         self.show()
 
     def add_line(self):
+        unfilled_inputs = self.check_inputs_filled()
+
+        if unfilled_inputs is not True:
+            for input_field in unfilled_inputs:
+                input_field.setStyleSheet("border: 1px solid red;")
+                input_field.setPlaceholderText("Обязательное поле")
+            return
+        else:
+            for input_field in [self.distance_input,
+                                self.course_input,
+                                self.init_z_input,
+                                self.angle_input,
+                                self.radius_input,
+                                self.dive_angle_input,
+                                self.target_radius_input]:
+                input_field.setStyleSheet("border: 1px solid #76797C;")
+                input_field.setPlaceholderText("")
         angle = math.radians(float(self.angle_input.text()))
         radius = float(self.radius_input.text())
         distance = float(self.distance_input.text())
@@ -146,21 +169,26 @@ class App(QWidget):
         Image_x=end_x*math.sin(dive_angle)
         Xt=Image_x*1000/distance
         Yt=end_y*1000/distance
-        log_entry = f"Line {len(self.coords)}: Angle-{angle},\n" \
-                    f"X={end_x-distance} Z={end_y} Хкарт={Image_x}\n Xт={Xt}  Zt={Yt}\n" \
-                    f"Course- {course}, Dive Angle -{dive_angle} ({0}, 0, {init_z})) -> {end}\n"
+        log_entry = f"Line {len(self.coords)}: угол места цели -{angle},\n" \
+                    f"X={end_x-distance}" \
+                    f"Z={end_y}" \
+                    f"Хкарт={Image_x}\n" \
+                    f"Xт={Xt}  Zt={Yt}\n" \
+                    f"курс- {course}, угол пик - {dive_angle} \n({0}, 0, {init_z})) -> {end}\n"
         self.coords_log.append(log_entry)
         self.coords_log.append(f" X: {end_x:.2f}")
         self.coords_log.append(f" Y: {end_y:.2f}")
-        print("Xt Yt")
+
 
         # Update calculations table
         self.update_std_devs(end)
         params = {
             "distance": float(self.distance_input.text()),
-            "dive_angle": math.radians(float(self.dive_angle_input.text())),
+            "dive_angle": (float(self.dive_angle_input.text())),
             "init_z": float(self.init_z_input.text()),
-            "course": math.radians(float(self.course_input.text())),
+            "course": (float(self.course_input.text())),
+            "angle": (float(self.angle_input.text())),
+            "radiys": float(self.radius_input.text())
         }
         self.update_calculations_table(params)
         self.calculations_table.update_table(self.coords, self.std_devs, params)
@@ -211,11 +239,49 @@ class App(QWidget):
     def get_std_devs(self):
         return self.std_devs
 
+    def clear_graphs(self):
+        print('Clearing graphs...')  # Add a print statement
+
+        # Очистить графики
+        self.three_d_graph.clear()
+        self.polar_2d_graph.clear()
+
+        # Начать новую серию расчетов
+        self.coords = []
+        self.std_devs = [0, 0, 0]
+        self.mean_coords = [0, 0, 0]
+        self.std_dev_label.setText('STD: x={:.2f}, y={:.2f}, z={:.2f}, Mean: x={:.2f}, y={:.2f}, z={:.2f}'.format(
+            *self.std_devs, *self.mean_coords))
+
+        print('Graphs cleared')
 
     def show_calculations(self):
         self.calculations_table.show()
 
+    def check_inputs_filled(self):
+        inputs = [
+            self.distance_input,
+            self.course_input,
+            self.init_z_input,
+            self.angle_input,
+            self.radius_input,
+            self.dive_angle_input,
+            self.target_radius_input
+        ]
+        unfilled_inputs = [input_field for input_field in inputs if not input_field.text()]
+
+        if unfilled_inputs:
+            return unfilled_inputs
+        else:
+            return True
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+
+    # Load the stylesheet
+    style_file = QFile("style.css")
+    style_file.open(QFile.ReadOnly)
+    stream = QTextStream(style_file)
+    app.setStyleSheet(stream.readAll())
+
     ex = App()
     sys.exit(app.exec_())
